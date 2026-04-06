@@ -1300,7 +1300,7 @@ function hotspotIcon() {
 }
 
 const hotspotLayer = L.geoJSON(HOTSPOTS, {
-  pointToLayer: (f, ll) => L.marker(ll, { icon: hotspotIcon() }),
+  pointToLayer: (f, ll) => L.marker(ll, { icon: hotspotIcon(), zIndexOffset: 1000 }),
   onEachFeature: (f, l) => l.on('click', () => {
     const coords = f.geometry.coordinates;
     map.flyTo([coords[1], coords[0]], 16, { duration: 1.2 });
@@ -1328,7 +1328,7 @@ function poiIcon(type) {
 }
 
 const poisLayer = L.geoJSON(POIS, {
-  pointToLayer: (f, ll) => L.marker(ll, { icon: poiIcon(f.properties.type) }),
+  pointToLayer: (f, ll) => L.marker(ll, { icon: poiIcon(f.properties.type), zIndexOffset: 900 }),
   onEachFeature: (f, l) => l.on('click', () => showPoiInfo(f.properties))
 }).addTo(map);
 
