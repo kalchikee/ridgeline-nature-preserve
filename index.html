@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ridgeline Nature Preserve — Wildlife Explorer</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       DESIGN SYSTEM
+    ═══════════════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Brand palette — earthy, warm, intentional */
+      --forest:   #1d3829;
+      --pine:     #274c3a;
+      --moss:     #3a6e52;
+      --fern:     #5c9474;
+      --sage:     #adc4b4;
+      --leaf:     #eaf2ed;
+
+      --amber:    #c4782a;
+      --amber-lt: #fdf0e0;
+      --amber-dk: #a3611e;
+
+      --ink:    #1c1917;
+      --char:   #3c3835;
+      --stone:  #706860;
+      --pebble: #a89f97;
+      --dust:   #ddd5cb;
+      --sand:   #ece8e1;
+      --paper:  #f5f1eb;
+      --white:  #ffffff;
+
+      /* Feature type colors */
+      --c-trail:    #c4782a;
+      --c-hotspot:  #1d3829;
+      --c-poi:      #1a4a8a;
+      --c-habitat:  #5a3882;
+      --c-sighting: #8a1a3d;
+
+      /* Typography */
+      --fd: 'Lora', Georgia, serif;
+      --fb: 'Inter', system-ui, sans-serif;
+
+      /* Layout */
+      --header-h: 56px;
+      --tab-h:    58px;
+
+      /* Effects */
+      --shadow-xs: 0 1px 3px rgba(0,0,0,.08);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.10);
+      --shadow-md: 0 4px 18px rgba(0,0,0,.14);
+      --shadow-lg: 0 8px 36px rgba(0,0,0,.18);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--fb);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--ink);
+      background: var(--forest);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       APP SHELL
+    ═══════════════════════════════════════════════════════════ */
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ═══════════════════════════════════════════════════════════
+       HEADER
+    ═══════════════════════════════════════════════════════════ */
+    .header {
+      flex-shrink: 0;
+      height: var(--header-h);
+      background: var(--forest);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 12px;
+      z-index: 1000;
+      position: relative;
+    }
+    /* Subtle topographic line texture via repeating gradient */
+    .header::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 11px,
+        rgba(255,255,255,0.03) 11px,
+        rgba(255,255,255,0.03) 12px
+      );
+      pointer-events: none;
+    }
+
+    .hdr-logo {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .hdr-logo svg { width: 22px; height: 18px; }
+
+    .hdr-text { line-height: 1.2; }
+    .hdr-name {
+      font-family: var(--fd);
+      font-weight: 600;
+      font-size: 16px;
+      color: var(--white);
+      letter-spacing: 0.2px;
+    }
+    .hdr-sub {
+      font-size: 10.5px;
+      color: rgba(255,255,255,0.45);
+      font-weight: 400;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .hdr-pill {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,0.10);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+    }
+    .hdr-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--fern);
+      flex-shrink: 0;
+    }
+    .hdr-dot.offline { background: var(--pebble); }
+
+    /* ═══════════════════════════════════════════════════════════
+       MAP
+    ═══════════════════════════════════════════════════════════ */
+    #map { flex: 1; z-index: 1; }
+
+    /* Leaflet control skin */
+    .leaflet-control-zoom a {
+      font-family: var(--fb) !important;
+      font-weight: 600 !important;
+      color: var(--char) !important;
+    }
+    .leaflet-control-zoom {
+      border: none !important;
+      box-shadow: var(--shadow-sm) !important;
+    }
+    .leaflet-control-zoom a:first-child { border-radius: 8px 8px 0 0 !important; }
+    .leaflet-control-zoom a:last-child  { border-radius: 0 0 8px 8px !important; }
+    .leaflet-control-scale-line {
+      font-family: var(--fb) !important;
+      font-size: 10px !important;
+      border-color: var(--char) !important;
+      color: var(--char) !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       MAP TAP HINT  (shown only when Report tab is open)
+    ═══════════════════════════════════════════════════════════ */
+    .map-tap-hint {
+      position: fixed;
+      top: calc(var(--header-h) + 14px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(28,56,41,0.92);
+      color: rgba(255,255,255,0.9);
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 800;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+      box-shadow: var(--shadow-sm);
+    }
+    .map-tap-hint.show { display: flex; }
+
+    /* ═══════════════════════════════════════════════════════════
+       FLOATING ACTION BUTTON
+    ═══════════════════════════════════════════════════════════ */
+    .fab-group {
+      position: fixed;
+      right: 14px;
+      bottom: calc(var(--tab-h) + 14px);
+      z-index: 900;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .fab {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      box-shadow: var(--shadow-md);
+      transition: transform 0.12s, box-shadow 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .fab:active { transform: scale(0.92); box-shadow: var(--shadow-xs); }
+    .fab-gps    { background: var(--white); color: var(--forest); }
+    .fab-gps.locating { background: var(--forest); color: var(--white); }
+
+    /* ═══════════════════════════════════════════════════════════
+       BOTTOM TAB BAR
+    ═══════════════════════════════════════════════════════════ */
+    .tab-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: var(--tab-h);
+      background: var(--white);
+      border-top: 1px solid var(--sand);
+      display: flex;
+      z-index: 1000;
+      box-shadow: 0 -4px 20px rgba(0,0,0,.09);
+    }
+    .tab-btn {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px;
+      background: none; border: none;
+      cursor: pointer;
+      color: var(--pebble);
+      font-size: 10px; font-weight: 500;
+      font-family: var(--fb);
+      padding: 6px 4px;
+      transition: color 0.15s;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn i { font-size: 19px; transition: color 0.15s; }
+    /* Active indicator — thin top line */
+    .tab-btn.active { color: var(--forest); }
+    .tab-btn.active::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 20%; right: 20%;
+      height: 2.5px;
+      background: var(--moss);
+      border-radius: 0 0 3px 3px;
+    }
+
+    /* Report tab — amber treatment */
+    .tab-report {
+      flex: 1.2;
+      position: relative;
+    }
+    .tab-report-inner {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px;
+      height: 100%;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-report-ring {
+      width: 40px; height: 40px;
+      background: var(--amber);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: -14px;
+      box-shadow: 0 4px 14px rgba(196,120,42,.4);
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .tab-report-ring:active { transform: scale(0.92); }
+    .tab-report-ring i { font-size: 20px; color: #fff; }
+    .tab-report-label {
+      font-size: 10px; font-weight: 500;
+      color: var(--amber-dk);
+      margin-top: 1px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       BOTTOM PANEL
+    ═══════════════════════════════════════════════════════════ */
+    .bottom-panel {
+      position: fixed; left: 0; right: 0;
+      bottom: var(--tab-h);
+      z-index: 500;
+      background: var(--paper);
+      border-radius: 18px 18px 0 0;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+      max-height: 64vh;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .bottom-panel.open { transform: translateY(0); }
+
+    .panel-grip {
+      width: 38px; height: 4px;
+      background: var(--dust);
+      border-radius: 2px;
+      margin: 10px auto 0;
+      flex-shrink: 0;
+    }
+    .panel-header {
+      padding: 12px 18px 10px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--sand);
+    }
+    .panel-title {
+      font-family: var(--fd);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .panel-close-btn {
+      background: var(--sand); border: none;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: var(--stone);
+      font-size: 13px;
+      transition: background 0.12s;
+    }
+    .panel-close-btn:hover { background: var(--dust); }
+
+    .panel-body {
+      overflow-y: auto; flex: 1;
+      padding: 16px 18px 24px;
+    }
+    .panel-body::-webkit-scrollbar { width: 3px; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--dust); border-radius: 3px; }
+
+    /* ═══════════════════════════════════════════════════════════
+       INFO SHEET  (feature details slide-up)
+    ═══════════════════════════════════════════════════════════ */
+    .info-sheet {
+      position: fixed; left: 0; right: 0;
+      bottom: var(--tab-h);
+      z-index: 600;
+      background: var(--white);
+      border-radius: 18px 18px 0 0;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      max-height: 54vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .info-sheet.open { transform: translateY(0); }
+
+    /* Colored top bar (set via inline style on .info-bar) */
+    .info-bar {
+      height: 5px;
+      width: 100%;
+      flex-shrink: 0;
+    }
+    .info-grip {
+      width: 38px; height: 4px;
+      background: var(--dust);
+      border-radius: 2px;
+      margin: 10px auto 0;
+    }
+    .info-body { padding: 12px 18px 28px; position: relative; }
+
+    .info-close {
+      position: absolute; top: 0; right: 18px;
+      background: var(--sand); border: none;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--stone); font-size: 13px;
+    }
+
+    .info-label {
+      display: inline-block;
+      font-size: 10.5px; font-weight: 600;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: var(--stone);
+      margin-bottom: 5px;
+    }
+    .info-name {
+      font-family: var(--fd);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+    .info-meta {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      margin-bottom: 12px;
+    }
+    .info-meta-item {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 12px; color: var(--stone);
+    }
+    .info-desc {
+      font-size: 13px;
+      color: var(--char);
+      line-height: 1.6;
+    }
+    .info-desc + .info-desc { margin-top: 8px; }
+
+    /* ═══════════════════════════════════════════════════════════
+       CARDS  (used in all panels)
+    ═══════════════════════════════════════════════════════════ */
+    .card {
+      background: var(--white);
+      border-radius: 10px;
+      border: 1px solid var(--sand);
+      margin-bottom: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .card:hover { border-color: var(--dust); box-shadow: var(--shadow-xs); }
+
+    /* Colored left stripe per type */
+    .card-inner {
+      display: flex;
+      padding: 11px 13px;
+    }
+    .card-stripe {
+      width: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      margin-right: 12px;
+      align-self: stretch;
+    }
+    .card-content { flex: 1; min-width: 0; }
+    .card-row {
+      display: flex; align-items: flex-start;
+      gap: 8px; margin-bottom: 4px;
+    }
+    .card-emoji { font-size: 19px; flex-shrink: 0; margin-top: 1px; }
+    .card-name  { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .card-sub   { font-size: 11px; color: var(--stone); margin-top: 1px; }
+    .card-right { margin-left: auto; flex-shrink: 0; padding-left: 8px; }
+    .card-desc  { font-size: 12px; color: var(--char); line-height: 1.5; }
+    .card-by    { font-size: 11px; color: var(--pebble); margin-top: 5px; }
+
+    /* Difficulty badge */
+    .diff-badge {
+      font-size: 10px; font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       FILTER CHIPS
+    ═══════════════════════════════════════════════════════════ */
+    .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .chip {
+      padding: 5px 13px;
+      border-radius: 20px;
+      border: 1.5px solid var(--dust);
+      background: var(--white);
+      font-size: 12px; font-weight: 500;
+      font-family: var(--fb);
+      color: var(--stone);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .chip:hover { border-color: var(--pebble); color: var(--char); }
+    .chip.active {
+      background: var(--forest);
+      border-color: var(--forest);
+      color: var(--white);
+    }
+    .chip.a-easy     { background: #d7ede0; border-color: #3a7050; color: #1d4d35; }
+    .chip.a-moderate { background: #fdefd8; border-color: #b87028; color: #8a4e10; }
+    .chip.a-hard     { background: #fde0e0; border-color: #b53030; color: #7a1c1c; }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION LABEL
+    ═══════════════════════════════════════════════════════════ */
+    .sec-label {
+      font-size: 10.5px; font-weight: 600;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: var(--pebble);
+      margin-bottom: 10px;
+    }
+    .sec-label + .sec-label { margin-top: 20px; }
+
+    /* ═══════════════════════════════════════════════════════════
+       EXPLORE PANEL — habitat/hotspot rows
+    ═══════════════════════════════════════════════════════════ */
+    .explore-intro {
+      font-size: 13px;
+      color: var(--char);
+      line-height: 1.65;
+      margin-bottom: 18px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--sand);
+    }
+    .row-item {
+      display: flex; align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--sand);
+      cursor: pointer;
+      transition: opacity 0.12s;
+    }
+    .row-item:last-child  { border-bottom: none; }
+    .row-item:active      { opacity: 0.7; }
+    .row-swatch {
+      width: 13px; height: 13px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .row-label  { font-size: 13px; color: var(--ink); flex: 1; }
+    .row-sub    { font-size: 11px; color: var(--stone); }
+    .row-right  { font-size: 11px; color: var(--pebble); }
+    .row-caret  { font-size: 11px; color: var(--dust); }
+
+    /* ═══════════════════════════════════════════════════════════
+       LAYER TOGGLES
+    ═══════════════════════════════════════════════════════════ */
+    .layer-row {
+      display: flex; align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--sand);
+    }
+    .layer-row:last-child { border-bottom: none; }
+    .layer-pip {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .layer-name { font-size: 13px; color: var(--ink); flex: 1; }
+
+    /* Toggle switch */
+    .tog { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .tog input { opacity: 0; width: 0; height: 0; }
+    .tog-track {
+      position: absolute; inset: 0;
+      background: var(--dust); border-radius: 20px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .tog-track::before {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      left: 2px; top: 2px;
+      background: var(--white);
+      border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: var(--shadow-xs);
+    }
+    .tog input:checked + .tog-track              { background: var(--moss); }
+    .tog input:checked + .tog-track::before      { transform: translateX(16px); }
+
+    /* Legend items */
+    .leg-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--char); }
+    .leg-line { width: 22px; height: 3px; border-radius: 2px; }
+    .leg-box  { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+
+    /* ═══════════════════════════════════════════════════════════
+       FORM
+    ═══════════════════════════════════════════════════════════ */
+    .form-group  { margin-bottom: 15px; }
+    .form-lbl {
+      display: block;
+      font-size: 11.5px; font-weight: 600;
+      color: var(--stone);
+      letter-spacing: 0.3px;
+      margin-bottom: 5px;
+    }
+    .form-lbl .req { color: #c23030; }
+    .form-ctrl {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1.5px solid var(--dust);
+      border-radius: 8px;
+      font-size: 14px; font-family: var(--fb);
+      background: var(--white); color: var(--ink);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none; -webkit-appearance: none;
+    }
+    .form-ctrl:focus {
+      outline: none;
+      border-color: var(--moss);
+      box-shadow: 0 0 0 3px rgba(58,110,82,.12);
+    }
+    .form-ctrl.has-err { border-color: #c23030; }
+    .form-err { font-size: 11px; color: #c23030; margin-top: 3px; display: none; }
+    .form-err.show { display: block; }
+    .form-hint { font-size: 11px; color: var(--pebble); margin-top: 3px; }
+
+    /* Location row */
+    .loc-row { display: flex; gap: 8px; }
+    .loc-display {
+      flex: 1;
+      padding: 10px 13px;
+      border: 1.5px solid var(--dust);
+      border-radius: 8px;
+      font-size: 12px; color: var(--pebble);
+      background: var(--paper);
+      font-style: italic;
+    }
+    .loc-btn {
+      padding: 10px 14px;
+      background: var(--forest); color: var(--white);
+      border: none; border-radius: 8px;
+      cursor: pointer; font-size: 16px;
+      display: flex; align-items: center;
+      transition: background 0.15s;
+    }
+    .loc-btn:hover { background: var(--pine); }
+
+    /* Report intro card */
+    .report-intro {
+      background: var(--leaf);
+      border-left: 3px solid var(--moss);
+      border-radius: 0 8px 8px 0;
+      padding: 10px 13px;
+      font-size: 12px;
+      color: var(--pine);
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+
+    /* Submit button */
+    .submit-btn {
+      width: 100%; padding: 13px;
+      background: var(--amber); color: var(--white);
+      border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600;
+      font-family: var(--fb);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background 0.15s, box-shadow 0.15s;
+      box-shadow: 0 3px 12px rgba(196,120,42,.3);
+    }
+    .submit-btn:hover    { background: var(--amber-dk); }
+    .submit-btn:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+
+    /* Success banner */
+    .success-banner {
+      background: var(--leaf);
+      border: 1px solid var(--sage);
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 13px; color: var(--pine);
+      text-align: center;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .success-banner.show { display: block; }
+
+    /* ═══════════════════════════════════════════════════════════
+       EMPTY / LOADING STATES
+    ═══════════════════════════════════════════════════════════ */
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--pebble);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .empty-state i { font-size: 32px; display: block; margin-bottom: 8px; color: var(--dust); }
+    .loading { text-align: center; padding: 20px; color: var(--pebble); font-size: 13px; }
+
+    /* ═══════════════════════════════════════════════════════════
+       LEAFLET POPUP SKIN
+    ═══════════════════════════════════════════════════════════ */
+    .leaflet-popup-content-wrapper {
+      border-radius: 10px !important;
+      box-shadow: var(--shadow-md) !important;
+      font-family: var(--fb) !important;
+    }
+    .leaflet-popup-tip { box-shadow: none !important; }
+
+    /* ═══════════════════════════════════════════════════════════
+       WELCOME MODAL
+    ═══════════════════════════════════════════════════════════ */
+    .welcome-overlay {
+      position: fixed; inset: 0;
+      background: var(--forest);
+      z-index: 2000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      transition: opacity 0.45s ease;
+    }
+    .welcome-overlay.hidden { opacity: 0; pointer-events: none; }
+    .welcome-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 32px 26px 26px;
+      max-width: 360px; width: 100%;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+    .welcome-logo {
+      width: 64px; height: 64px;
+      background: var(--forest);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 18px;
+    }
+    .welcome-logo svg { width: 38px; height: 30px; }
+    .welcome-name {
+      font-family: var(--fd);
+      font-size: 22px; font-weight: 600;
+      color: var(--forest);
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+    .welcome-sub {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      color: var(--pebble);
+      margin-bottom: 20px;
+    }
+    .welcome-persona {
+      background: var(--leaf);
+      border-left: 3px solid var(--moss);
+      border-radius: 0 8px 8px 0;
+      padding: 10px 13px;
+      font-size: 12.5px; color: var(--pine);
+      text-align: left; line-height: 1.6;
+      margin-bottom: 18px;
+    }
+    .welcome-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; margin-bottom: 22px;
+    }
+    .welcome-feat {
+      background: var(--paper);
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: 11.5px; color: var(--char);
+      text-align: left;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .welcome-feat i { color: var(--moss); font-size: 14px; flex-shrink: 0; }
+    .welcome-enter {
+      width: 100%; padding: 13px;
+      background: var(--forest); color: var(--white);
+      border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600; font-family: var(--fb);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background 0.15s;
+    }
+    .welcome-enter:hover { background: var(--pine); }
+
+    /* ═══════════════════════════════════════════════════════════
+       LIVE STATS (Explore panel)
+    ═══════════════════════════════════════════════════════════ */
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 8px; margin-bottom: 18px;
+    }
+    .stat-card {
+      background: var(--white);
+      border: 1px solid var(--sand);
+      border-radius: 10px;
+      padding: 12px 6px;
+      text-align: center;
+    }
+    .stat-num {
+      font-family: var(--fd);
+      font-size: 26px; font-weight: 600;
+      color: var(--forest);
+      line-height: 1;
+    }
+    .stat-lbl {
+      font-size: 9.5px; color: var(--pebble);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SEARCH + DATE FILTER (Sightings panel)
+    ═══════════════════════════════════════════════════════════ */
+    .search-wrap {
+      position: relative;
+      margin-bottom: 10px;
+    }
+    .search-wrap i {
+      position: absolute; left: 11px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--pebble); font-size: 14px;
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      padding: 9px 12px 9px 33px;
+      border: 1.5px solid var(--dust);
+      border-radius: 8px;
+      font-size: 13px; font-family: var(--fb);
+      background: var(--white); color: var(--ink);
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { outline: none; border-color: var(--moss); }
+    .search-input::placeholder { color: var(--pebble); }
+
+    /* Date range chips */
+    .date-chip-row {
+      display: flex; gap: 6px; margin-bottom: 10px;
+    }
+    .date-chip {
+      padding: 4px 11px;
+      border-radius: 20px;
+      border: 1.5px solid var(--dust);
+      background: var(--white);
+      font-size: 11.5px; font-weight: 500; font-family: var(--fb);
+      color: var(--stone);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .date-chip.active { background: var(--amber); border-color: var(--amber); color: var(--white); }
+
+    /* Sightings count badge */
+    .sightings-count {
+      font-size: 11px; color: var(--pebble);
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+<!-- ── WELCOME MODAL ── -->
+<div class="welcome-overlay" id="welcomeOverlay">
+  <div class="welcome-card">
+    <div class="welcome-logo">
+      <svg viewBox="0 0 28 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 21L10 5l4.5 7.5L18 8l9 13H1z"
+          fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.8)"
+          stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="22" cy="4" r="2" fill="rgba(255,220,100,0.8)"/>
+      </svg>
+    </div>
+    <div class="welcome-name">Ridgeline<br>Nature Preserve</div>
+    <div class="welcome-sub">Wildlife Explorer</div>
+    <div class="welcome-persona">
+      <strong>Designed for wildlife enthusiasts</strong> — visitors who want to
+      discover what species call the preserve home, plan visits around optimal
+      viewing times, and contribute observations to the park's living database.
+    </div>
+    <div class="welcome-grid">
+      <div class="welcome-feat"><i class="bi bi-map"></i> 6 map layers</div>
+      <div class="welcome-feat"><i class="bi bi-signpost-split"></i> 3 trails</div>
+      <div class="welcome-feat"><i class="bi bi-binoculars"></i> 5 hotspots</div>
+      <div class="welcome-feat"><i class="bi bi-plus-circle"></i> Log sightings</div>
+    </div>
+    <button class="welcome-enter" onclick="dismissWelcome()">
+      <i class="bi bi-arrow-right-circle"></i> Enter the Preserve
+    </button>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <div class="hdr-logo">
+      <!-- Mountain outline SVG -->
+      <svg viewBox="0 0 28 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 21L10 5l4.5 7.5L18 8l9 13H1z"
+          fill="rgba(255,255,255,0.12)"
+          stroke="rgba(255,255,255,0.65)"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"/>
+        <circle cx="22" cy="4" r="2" fill="rgba(255,220,100,0.6)"/>
+      </svg>
+    </div>
+    <div class="hdr-text">
+      <div class="hdr-name">Ridgeline</div>
+      <div class="hdr-sub">Nature Preserve</div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-pill">
+        <div class="hdr-dot" id="statusDot"></div>
+        <span id="dbStatus">—</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MAP ── -->
+  <div id="map"></div>
+
+  <!-- ── MAP TAP HINT ── -->
+  <div class="map-tap-hint" id="mapTapHint">
+    <i class="bi bi-hand-index-thumb"></i>
+    Tap map to pin your sighting
+  </div>
+
+  <!-- ── GPS FAB ── -->
+  <div class="fab-group">
+    <button class="fab fab-gps" id="gpsBtn" title="Find my location" onclick="locateUser()">
+      <i class="bi bi-geo-alt-fill"></i>
+    </button>
+  </div>
+
+  <!-- ── INFO SHEET ── -->
+  <div class="info-sheet" id="infoSheet">
+    <div class="info-bar" id="infoBar"></div>
+    <div class="info-grip"></div>
+    <div class="info-body">
+      <button class="info-close" onclick="closeInfoSheet()" aria-label="Close">
+        <i class="bi bi-x-lg"></i>
+      </button>
+      <div id="infoContent"></div>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM PANEL ── -->
+  <div class="bottom-panel" id="bottomPanel">
+    <div class="panel-grip"></div>
+    <div class="panel-header">
+      <span class="panel-title" id="panelTitle"></span>
+      <button class="panel-close-btn" onclick="closePanel()" aria-label="Close">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+  </div>
+
+  <!-- ── BOTTOM TAB BAR ── -->
+  <nav class="tab-bar">
+    <button class="tab-btn" id="tab-explore"   onclick="openTab('explore')">
+      <i class="bi bi-binoculars"></i><span>Explore</span>
+    </button>
+    <button class="tab-btn" id="tab-trails"    onclick="openTab('trails')">
+      <i class="bi bi-signpost-split"></i><span>Trails</span>
+    </button>
+
+    <!-- Centre Report tab — amber raised button -->
+    <div class="tab-report">
+      <div class="tab-report-inner" onclick="openTab('report')" id="tab-report">
+        <div class="tab-report-ring"><i class="bi bi-plus-lg"></i></div>
+        <span class="tab-report-label">Report</span>
+      </div>
+    </div>
+
+    <button class="tab-btn" id="tab-sightings" onclick="openTab('sightings')">
+      <i class="bi bi-eye"></i><span>Sightings</span>
+    </button>
+    <button class="tab-btn" id="tab-layers"    onclick="openTab('layers')">
+      <i class="bi bi-layers"></i><span>Layers</span>
+    </button>
+  </nav>
+
+</div><!-- .app -->
+
+<!-- ── SCRIPTS ── -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+'use strict';
+
+// ============================================================
+//  CONFIGURATION
+// ============================================================
+const SUPABASE_URL      = 'https://vvwwlgaeabhfzhchchhr.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2d3dsZ2FlYWJoZnpoY2hjaGhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMzcwOTUsImV4cCI6MjA4NzkxMzA5NX0.3dZ9FLfm02JYcAZ7R8j9sbAny9FsakyDEgW3scil8zw';
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================================
+//  EMBEDDED PARK DATA  (GeoJSON)
+// ============================================================
+
+const PARK_BOUNDARY = {
+  type: 'Feature',
+  properties: { name: 'Ridgeline Nature Preserve', area_acres: 2185 },
+  geometry: {
+    type: 'Polygon',
+    coordinates: [[
+      [-104.960, 38.818], [-104.882, 38.818],
+      [-104.882, 38.884], [-104.960, 38.884],
+      [-104.960, 38.818]
+    ]]
+  }
+};
+
+const HABITATS = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Montane Forest', type: 'forest', area_acres: 1240,
+        description: 'Ponderosa pine and Douglas fir forest covering the mid-slopes. Supports mule deer, black bears, and over 60 bird species including multiple woodpecker species.'
+      },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-104.942,38.855],[-104.920,38.856],[-104.900,38.866],
+        [-104.895,38.880],[-104.910,38.883],[-104.937,38.876],
+        [-104.943,38.866],[-104.942,38.855]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Alpine Meadow', type: 'meadow', area_acres: 380,
+        description: 'High-elevation meadow with native grasses and summer wildflowers. Prime elk summer habitat; over 40 wildflower species documented. Peak bloom July–August.'
+      },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-104.912,38.865],[-104.896,38.869],[-104.890,38.882],
+        [-104.907,38.883],[-104.914,38.878],[-104.912,38.865]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Riparian Zone', type: 'riparian', area_acres: 210,
+        description: 'Cottonwood and willow corridor along Ridgeline Creek. Rich in amphibians, songbirds, and beaver activity. Highest wildlife diversity per acre in the preserve.'
+      },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-104.950,38.824],[-104.944,38.824],[-104.938,38.862],
+        [-104.930,38.873],[-104.934,38.874],[-104.942,38.863],
+        [-104.950,38.826],[-104.950,38.824]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Rocky Outcrop', type: 'rocky', area_acres: 155,
+        description: 'Exposed granite and limestone formations. Habitat for American pikas, yellow-bellied marmots, and cliff-nesting swallows. Listen for the pika\'s distinctive alarm calls.'
+      },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-104.908,38.824],[-104.895,38.827],[-104.891,38.838],
+        [-104.900,38.840],[-104.910,38.835],[-104.910,38.824],
+        [-104.908,38.824]
+      ]]}
+    }
+  ]
+};
+
+const TRAILS = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Summit Ridge Trail', difficulty: 'Hard',
+        length_mi: 5.2, surface: 'Rocky',
+        description: 'A challenging ascent to the preserve\'s highest point at 9,240 ft. Strenuous switchbacks above treeline reward hikers with 360° panoramic views. Bring extra water and layers — weather changes fast above treeline.'
+      },
+      geometry: { type: 'LineString', coordinates: [
+        [-104.948,38.827],[-104.935,38.840],[-104.920,38.852],
+        [-104.902,38.862],[-104.893,38.876]
+      ]}
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Meadow Loop', difficulty: 'Easy',
+        length_mi: 1.8, surface: 'Packed gravel',
+        description: 'A gentle loop through the heart of the wildflower meadow. Excellent for families, birding, and casual nature walks. Accessible year-round; best in summer for bloom.'
+      },
+      geometry: { type: 'LineString', coordinates: [
+        [-104.927,38.844],[-104.919,38.852],[-104.912,38.848],
+        [-104.915,38.840],[-104.924,38.842],[-104.927,38.844]
+      ]}
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Creekside Path', difficulty: 'Moderate',
+        length_mi: 3.1, surface: 'Natural',
+        description: 'Follows Ridgeline Creek through lush riparian habitat. Expect muddy sections in spring. Outstanding wildlife viewing all year — watch for beaver activity near the pond.'
+      },
+      geometry: { type: 'LineString', coordinates: [
+        [-104.948,38.827],[-104.945,38.836],[-104.942,38.848],
+        [-104.939,38.860],[-104.932,38.872]
+      ]}
+    }
+  ]
+};
+
+const HOTSPOTS = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {
+        name: "Eagle's Nest Overlook",
+        species: 'Bald Eagle, Golden Eagle', category: 'Raptors',
+        best_time: 'Early morning (6–9 am)',
+        description: 'Granite outcrop with open valley views. Eagles soar on morning thermals and perch in the ponderosas below. Bring binoculars.'
+      },
+      geometry: { type: 'Point', coordinates: [-104.897, 38.872] }
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Deer Meadow',
+        species: 'White-tailed Deer, Elk, Wild Turkey', category: 'Ungulates & Birds',
+        best_time: 'Dawn and dusk',
+        description: 'Open meadow where deer and elk graze. Wild turkeys forage along the forest edge in the afternoons. Avoid loud noises and bright colors.'
+      },
+      geometry: { type: 'Point', coordinates: [-104.918, 38.847] }
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Beaver Pond',
+        species: 'American Beaver, Great Blue Heron, Wood Duck', category: 'Wetland Wildlife',
+        best_time: 'Early morning',
+        description: 'Active beaver dam with open water. Herons fish from the bank at dawn; ducks nest in cattails along the south edge. Stay on the designated viewing bench.'
+      },
+      geometry: { type: 'Point', coordinates: [-104.940, 38.862] }
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Fox Den Area',
+        species: 'Red Fox, Coyote, Mule Deer', category: 'Mammals',
+        best_time: 'Morning and evening',
+        description: 'Known red fox denning site beneath a granite ledge. Stay quiet and remain downwind for the best chance of seeing kits in spring (April–June).'
+      },
+      geometry: { type: 'Point', coordinates: [-104.930, 38.833] }
+    },
+    {
+      type: 'Feature',
+      properties: {
+        name: 'Raptor Ridge',
+        species: 'Red-tailed Hawk, Turkey Vulture, American Kestrel', category: 'Raptors',
+        best_time: 'Midday thermals (11 am–2 pm)',
+        description: 'The main ridge generates strong thermal updrafts used by multiple raptor species for effortless soaring. Ideal midday photography with bright light.'
+      },
+      geometry: { type: 'Point', coordinates: [-104.908, 38.878] }
+    }
+  ]
+};
+
+const POIS = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: { name: 'Visitor Center', type: 'trailhead', icon: '🏛️',
+        description: 'Park HQ with maps, restrooms, first-aid station, and ranger staff. All three trailheads begin here. Open daily 8 am–6 pm.' },
+      geometry: { type: 'Point', coordinates: [-104.948, 38.827] }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Summit Overlook', type: 'viewpoint', icon: '🔭',
+        description: '360° panoramic views from 9,240 ft — the highest point in the preserve. Bench and interpretive signage. Accessible via Summit Ridge Trail.' },
+      geometry: { type: 'Point', coordinates: [-104.893, 38.876] }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Beaver Pond Bench', type: 'picnic', icon: '🌿',
+        description: 'Peaceful bench overlooking the active beaver pond. Excellent wildlife photography spot. Accessible from the Creekside Path.' },
+      geometry: { type: 'Point', coordinates: [-104.941, 38.861] }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Old Growth Grove', type: 'feature', icon: '🌲',
+        description: 'Ancient ponderosa pines — some over 300 years old. Dense shade canopy supports cavity-nesting birds including Pygmy Nuthatch and Northern Flicker.' },
+      geometry: { type: 'Point', coordinates: [-104.928, 38.855] }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Wildflower Meadow', type: 'feature', icon: '🌸',
+        description: 'Over 40 native wildflower species documented including Blue Columbine, Indian Paintbrush, and Yarrow. Peak bloom late June–August.' },
+      geometry: { type: 'Point', coordinates: [-104.916, 38.848] }
+    },
+    {
+      type: 'Feature',
+      properties: { name: 'Rocky Creek Crossing', type: 'feature', icon: '💧',
+        description: 'Scenic ford of Ridgeline Creek. High water in May–June; stepping stones available July–October. Good spot for salamanders and water striders.' },
+      geometry: { type: 'Point', coordinates: [-104.943, 38.843] }
+    }
+  ]
+};
+
+// ============================================================
+//  MAP INITIALIZATION
+// ============================================================
+const PARK_CENTER = [38.851, -104.921];
+
+const map = L.map('map', { center: PARK_CENTER, zoom: 14, zoomControl: false });
+
+L.control.zoom({ position: 'topright' }).addTo(map);
+L.control.scale({ position: 'bottomleft', metric: false, imperial: true }).addTo(map);
+
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Tiles &copy; Esri', maxZoom: 18 }
+).addTo(map);
+
+// ============================================================
+//  LAYER STYLES
+// ============================================================
+const HABITAT_STYLE = {
+  forest:   { color: '#1d4a30', fill: '#4a8f64' },
+  meadow:   { color: '#8a6010', fill: '#d4aa3a' },
+  riparian: { color: '#1a4278', fill: '#5a8ec8' },
+  rocky:    { color: '#5c4030', fill: '#b09080' }
+};
+
+const TRAIL_COLOR  = { Easy: '#2e7a50', Moderate: '#c47828', Hard: '#b53030' };
+const TRAIL_STRIPE = { Easy: '#2e7a50', Moderate: '#c47828', Hard: '#b53030' };
+
+// ============================================================
+//  STATIC MAP LAYERS
+// ============================================================
+
+const boundaryLayer = L.geoJSON(PARK_BOUNDARY, {
+  style: { color: '#1d3829', weight: 2, dashArray: '8,5', fillOpacity: 0, opacity: 0.6 }
+}).addTo(map);
+
+const habitatLayer = L.geoJSON(HABITATS, {
+  style: f => {
+    const s = HABITAT_STYLE[f.properties.type] || { color: '#666', fill: '#aaa' };
+    return { color: s.color, weight: 1, fillColor: s.fill, fillOpacity: 0.20, opacity: 0.55 };
+  },
+  onEachFeature: (f, l) => l.on('click', () => showHabitatInfo(f.properties))
+}).addTo(map);
+
+const trailsLayer = L.geoJSON(TRAILS, {
+  style: f => ({
+    color: TRAIL_COLOR[f.properties.difficulty] || '#888',
+    weight: 3.5, opacity: 0.85, lineCap: 'round', lineJoin: 'round'
+  }),
+  onEachFeature: (f, l) => l.on('click', () => showTrailInfo(f.properties))
+}).addTo(map);
+
+// Hotspot markers — dark green rounded square badge
+function hotspotIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:34px;height:34px;
+      background:#1d3829;
+      border:2.5px solid #fff;
+      border-radius:9px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:17px;
+      box-shadow:0 3px 10px rgba(0,0,0,.28);
+    ">🔭</div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17]
+  });
+}
+
+const hotspotLayer = L.geoJSON(HOTSPOTS, {
+  pointToLayer: (f, ll) => L.marker(ll, { icon: hotspotIcon() }),
+  onEachFeature: (f, l) => l.on('click', () => showHotspotInfo(f.properties))
+}).addTo(map);
+
+// POI markers — blue rounded square badge
+const POI_ICON_MAP = { trailhead: '🏛️', viewpoint: '🔭', picnic: '🌿', feature: '📍' };
+function poiIcon(type) {
+  const em = POI_ICON_MAP[type] || '📍';
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:30px;height:30px;
+      background:#1a4a8a;
+      border:2.5px solid #fff;
+      border-radius:9px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:14px;
+      box-shadow:0 3px 10px rgba(0,0,0,.28);
+    ">${em}</div>`,
+    iconSize: [30, 30], iconAnchor: [15, 15]
+  });
+}
+
+const poisLayer = L.geoJSON(POIS, {
+  pointToLayer: (f, ll) => L.marker(ll, { icon: poiIcon(f.properties.type) }),
+  onEachFeature: (f, l) => l.on('click', () => showPoiInfo(f.properties))
+}).addTo(map);
+
+// Sightings layer group — populated from Supabase
+const sightingsLayer = L.layerGroup().addTo(map);
+
+// Layer registry
+const LAYER_REG = {
+  boundary: { layer: boundaryLayer, label: 'Park Boundary',      color: '#1d3829', visible: true },
+  habitats: { layer: habitatLayer,  label: 'Habitat Zones',      color: '#4a8f64', visible: true },
+  trails:   { layer: trailsLayer,   label: 'Trails',             color: '#c47828', visible: true },
+  hotspots: { layer: hotspotLayer,  label: 'Wildlife Hotspots',  color: '#1d3829', visible: true },
+  pois:     { layer: poisLayer,     label: 'Points of Interest', color: '#1a4a8a', visible: true },
+  sightings:{ layer: sightingsLayer,label: 'Visitor Sightings',  color: '#8a1a3d', visible: true }
+};
+
+// ============================================================
+//  SUPABASE — LOAD SIGHTINGS
+// ============================================================
+let allSightings  = [];
+let activeFilter  = 'all';
+let searchQuery   = '';
+let activeDateRange = 'all';   // 'all' | '30' | '7'
+
+async function loadSightings() {
+  try {
+    const { data, error } = await db
+      .from('wildlife_sightings')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    allSightings = data || [];
+
+    document.getElementById('dbStatus').textContent =
+      `${allSightings.length} sighting${allSightings.length !== 1 ? 's' : ''}`;
+    document.getElementById('statusDot').classList.remove('offline');
+    renderSightingMarkers(allSightings);
+  } catch (err) {
+    console.error('Supabase error:', err);
+    document.getElementById('dbStatus').textContent = 'Offline';
+    document.getElementById('statusDot').classList.add('offline');
+  }
+}
+
+// Sighting styles
+const CAT_COLOR = {
+  mammal: '#5c2d8a', bird: '#1a4a8a', reptile: '#2e6e2e',
+  amphibian: '#166a58', insect: '#b06010', plant: '#3a5e1a', other: '#4a4844'
+};
+const CAT_EMOJI = {
+  mammal: '🦌', bird: '🐦', reptile: '🦎',
+  amphibian: '🐸', insect: '🦋', plant: '🌿', other: '🔍'
+};
+
+function sightingIcon(cat) {
+  const color = CAT_COLOR[cat] || '#555';
+  const em    = CAT_EMOJI[cat]  || '🔍';
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:30px;height:30px;
+      background:${color};
+      border:2.5px solid #fff;
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:14px;
+      box-shadow:0 3px 10px rgba(0,0,0,.30);
+    ">${em}</div>`,
+    iconSize: [30, 30], iconAnchor: [15, 15]
+  });
+}
+
+function renderSightingMarkers(list) {
+  sightingsLayer.clearLayers();
+  list.forEach(s => {
+    if (s.lat == null || s.lng == null) return;
+    const m = L.marker([s.lat, s.lng], { icon: sightingIcon(s.category) });
+    m.on('click', () => showSightingInfo(s));
+    sightingsLayer.addLayer(m);
+  });
+}
+
+// ============================================================
+//  FUNCTION 1 — Filter Sightings by Category
+// ============================================================
+function filterSightings(cat) {
+  activeFilter = cat;
+  document.querySelectorAll('#filterChips .chip')
+    .forEach(c => c.classList.toggle('active', c.dataset.cat === cat));
+  applyFilters();
+}
+
+// ============================================================
+//  FUNCTION 5 — Species Text Search
+// ============================================================
+function searchSightings(query) {
+  searchQuery = query.toLowerCase().trim();
+  applyFilters();
+}
+
+// ============================================================
+//  FUNCTION 6 — Date Range Filter
+// ============================================================
+function filterByDate(range) {
+  activeDateRange = range;
+  document.querySelectorAll('.date-chip')
+    .forEach(c => c.classList.toggle('active', c.dataset.range === range));
+  applyFilters();
+}
+
+// Shared — combines all three active filters
+function applyFilters() {
+  let list = allSightings;
+
+  // Category filter
+  if (activeFilter !== 'all') {
+    list = list.filter(s => s.category === activeFilter);
+  }
+
+  // Species text search
+  if (searchQuery) {
+    list = list.filter(s => s.species.toLowerCase().includes(searchQuery));
+  }
+
+  // Date range filter
+  if (activeDateRange !== 'all') {
+    const days = parseInt(activeDateRange, 10);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    list = list.filter(s => s.sighting_date && new Date(s.sighting_date) >= cutoff);
+  }
+
+  renderSightingMarkers(list);
+  renderSightingsList(list);
+
+  // Update count badge
+  const badge = document.getElementById('sightingsCount');
+  if (badge) badge.textContent = `${list.length} result${list.length !== 1 ? 's' : ''}`;
+}
+
+function renderSightingsList(list) {
+  const el = document.getElementById('sightingsList');
+  if (!el) return;
+
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty-state"><i class="bi bi-eye-slash"></i>No sightings for this filter.<br>Be the first to report one!</div>';
+    return;
+  }
+
+  el.innerHTML = list.map(s => `
+    <div class="card" onclick="flyTo(${s.lat},${s.lng})">
+      <div class="card-inner">
+        <div class="card-stripe" style="background:${CAT_COLOR[s.category] || '#888'}"></div>
+        <div class="card-content">
+          <div class="card-row">
+            <span class="card-emoji">${CAT_EMOJI[s.category] || '🔍'}</span>
+            <div>
+              <div class="card-name">${esc(s.species)}</div>
+              <div class="card-sub">${cap(s.category)}</div>
+            </div>
+            <div class="card-right" style="font-size:11px;color:var(--pebble)">${fmtDate(s.sighting_date)}</div>
+          </div>
+          ${s.description ? `<div class="card-desc">${esc(s.description)}</div>` : ''}
+          ${s.submitter_name ? `<div class="card-by">Reported by ${esc(s.submitter_name)}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function flyTo(lat, lng) {
+  closePanel();
+  map.flyTo([lat, lng], 16, { duration: 1 });
+}
+
+// ============================================================
+//  FUNCTION 2 — Submit Wildlife Sighting
+// ============================================================
+let submitting = false;
+
+async function submitSighting(e) {
+  e.preventDefault();
+  if (submitting) return;
+
+  const species  = document.getElementById('f-species').value.trim();
+  const category = document.getElementById('f-category').value;
+  const date     = document.getElementById('f-date').value;
+  const desc     = document.getElementById('f-desc').value.trim();
+  const name     = document.getElementById('f-name').value.trim();
+  const lat      = parseFloat(document.getElementById('f-lat').value);
+  const lng      = parseFloat(document.getElementById('f-lng').value);
+
+  let ok = true;
+  const setErr = (id, msg) => {
+    const err = document.getElementById(id + '-err');
+    const inp = document.getElementById(id);
+    if (err) { err.textContent = msg; err.classList.toggle('show', !!msg); }
+    if (inp) inp.classList.toggle('has-err', !!msg);
+    if (msg) ok = false;
+  };
+
+  setErr('f-species',  species.length < 2 ? 'Enter a species name (at least 2 characters).' : '');
+  setErr('f-category', !category           ? 'Please select a category.'                     : '');
+  setErr('f-date',     !date               ? 'Please select the date observed.'              : '');
+
+  if (isNaN(lat) || isNaN(lng)) {
+    setErr('f-lat', 'Set a location by tapping the map or using GPS.');
+    ok = false;
+  } else {
+    const inPark = lat >= 38.818 && lat <= 38.884 && lng >= -104.960 && lng <= -104.882;
+    setErr('f-lat', inPark ? '' : 'Location is outside the preserve boundaries.');
+  }
+
+  if (!ok) return;
+
+  submitting = true;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Submitting…';
+
+  try {
+    const { error } = await db.from('wildlife_sightings').insert({
+      species, category, sighting_date: date,
+      description: desc || null,
+      submitter_name: name || null,
+      lat, lng
+    });
+    if (error) throw error;
+
+    document.getElementById('successBanner').classList.add('show');
+    document.getElementById('sightingForm').reset();
+    document.getElementById('f-lat').value = '';
+    document.getElementById('f-lng').value = '';
+    document.getElementById('locDisplay').textContent = 'Tap map or use GPS →';
+
+    await loadSightings();
+    setTimeout(() => document.getElementById('successBanner').classList.remove('show'), 5000);
+
+  } catch (err) {
+    alert('Submission failed — check your connection and try again.\n\n' + err.message);
+    console.error(err);
+  } finally {
+    submitting = false;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-fill"></i> Submit Sighting';
+  }
+}
+
+// ============================================================
+//  FUNCTION 3 — Geolocation
+// ============================================================
+let locating = false;
+
+function locateUser() {
+  if (locating) return;
+  if (!navigator.geolocation) { alert('Geolocation is not available on this device.'); return; }
+
+  locating = true;
+  const btn = document.getElementById('gpsBtn');
+  btn.classList.add('locating');
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      locating = false;
+      btn.classList.remove('locating');
+      const { latitude: lat, longitude: lng } = pos.coords;
+
+      map.flyTo([lat, lng], 16, { duration: 1.5 });
+
+      L.circleMarker([lat, lng], {
+        radius: 8, color: '#1a4a8a', fillColor: '#5c8fd4',
+        fillOpacity: 0.85, weight: 2.5
+      }).addTo(map).bindPopup('You are here').openPopup();
+
+      const latFld = document.getElementById('f-lat');
+      const lngFld = document.getElementById('f-lng');
+      const disp   = document.getElementById('locDisplay');
+      if (latFld) latFld.value = lat.toFixed(6);
+      if (lngFld) lngFld.value = lng.toFixed(6);
+      if (disp)   disp.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    },
+    () => {
+      locating = false;
+      btn.classList.remove('locating');
+      alert('Could not retrieve your location. Ensure location access is allowed in your browser settings.');
+    },
+    { enableHighAccuracy: true, timeout: 12000 }
+  );
+}
+
+// ============================================================
+//  FUNCTION 4 — Filter Trails by Difficulty
+// ============================================================
+let trailFilter = 'All';
+
+function filterTrails(diff) {
+  trailFilter = diff;
+
+  document.querySelectorAll('#trailChips .chip').forEach(c => {
+    c.className = 'chip';
+    if (c.dataset.diff === diff) {
+      if      (diff === 'All')      c.classList.add('active');
+      else if (diff === 'Easy')     c.classList.add('a-easy');
+      else if (diff === 'Moderate') c.classList.add('a-moderate');
+      else if (diff === 'Hard')     c.classList.add('a-hard');
+    }
+  });
+
+  trailsLayer.eachLayer(l => {
+    const show = diff === 'All' || l.feature.properties.difficulty === diff;
+    l.setStyle({ opacity: show ? 0.85 : 0.10, weight: show ? 3.5 : 1 });
+  });
+
+  renderTrailList(diff);
+}
+
+function renderTrailList(diff) {
+  const el = document.getElementById('trailsList');
+  if (!el) return;
+  const features = TRAILS.features.filter(f => diff === 'All' || f.properties.difficulty === diff);
+
+  if (features.length === 0) {
+    el.innerHTML = '<div class="empty-state"><i class="bi bi-signpost-split"></i>No trails match this filter.</div>';
+    return;
+  }
+
+  el.innerHTML = features.map(f => {
+    const p   = f.properties;
+    const col = TRAIL_COLOR[p.difficulty] || '#888';
+    const s   = f.geometry.coordinates[0];
+    return `
+      <div class="card" onclick="flyTo(${s[1]},${s[0]})">
+        <div class="card-inner">
+          <div class="card-stripe" style="background:${col}"></div>
+          <div class="card-content">
+            <div class="card-row">
+              <span class="card-emoji">🥾</span>
+              <div>
+                <div class="card-name">${p.name}</div>
+                <div class="card-sub">${p.length_mi} mi &middot; ${p.surface}</div>
+              </div>
+              <div class="card-right">
+                <span class="diff-badge" style="background:${col}20;color:${col};border:1px solid ${col}50">${p.difficulty}</span>
+              </div>
+            </div>
+            <div class="card-desc">${p.description}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================================
+//  MAP CLICK — Pin location for Report tab
+// ============================================================
+map.on('click', e => {
+  if (currentTab !== 'report') return;
+  const { lat, lng } = e.latlng;
+  const latFld = document.getElementById('f-lat');
+  const lngFld = document.getElementById('f-lng');
+  const disp   = document.getElementById('locDisplay');
+  if (latFld) latFld.value = lat.toFixed(6);
+  if (lngFld) lngFld.value = lng.toFixed(6);
+  if (disp)   disp.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  const err = document.getElementById('f-lat-err');
+  const inp = document.getElementById('f-lat');
+  if (err) err.classList.remove('show');
+  if (inp) inp.classList.remove('has-err');
+});
+
+// ============================================================
+//  INFO SHEET
+// ============================================================
+const FEATURE_COLORS = {
+  trail: '#c4782a', hotspot: '#1d3829', poi: '#1a4a8a',
+  habitat: '#5a3882', sighting: '#8a1a3d'
+};
+
+function showInfoSheet(type, html) {
+  document.getElementById('infoBar').style.background = FEATURE_COLORS[type] || '#888';
+  document.getElementById('infoContent').innerHTML = html;
+  document.getElementById('infoSheet').classList.add('open');
+}
+function closeInfoSheet() {
+  document.getElementById('infoSheet').classList.remove('open');
+}
+
+function showTrailInfo(p) {
+  const col = TRAIL_COLOR[p.difficulty] || '#888';
+  showInfoSheet('trail', `
+    <div class="info-label">Trail</div>
+    <div class="info-name">${esc(p.name)}</div>
+    <div class="info-meta">
+      <span class="info-meta-item"><span style="font-weight:700;color:${col}">${p.difficulty}</span></span>
+      <span class="info-meta-item"><i class="bi bi-rulers"></i>&nbsp;${p.length_mi} miles</span>
+      <span class="info-meta-item"><i class="bi bi-layers"></i>&nbsp;${esc(p.surface)}</span>
+    </div>
+    <div class="info-desc">${esc(p.description)}</div>
+  `);
+}
+
+function showHotspotInfo(p) {
+  showInfoSheet('hotspot', `
+    <div class="info-label">Wildlife Hotspot</div>
+    <div class="info-name">${esc(p.name)}</div>
+    <div class="info-meta">
+      <span class="info-meta-item"><i class="bi bi-clock"></i>&nbsp;${esc(p.best_time)}</span>
+      <span class="info-meta-item"><i class="bi bi-tag"></i>&nbsp;${esc(p.category)}</span>
+    </div>
+    <div class="info-desc"><strong>Common species:</strong> ${esc(p.species)}</div>
+    <div class="info-desc">${esc(p.description)}</div>
+  `);
+}
+
+function showPoiInfo(p) {
+  showInfoSheet('poi', `
+    <div class="info-label">Point of Interest</div>
+    <div class="info-name">${p.icon || ''} ${esc(p.name)}</div>
+    <div class="info-desc">${esc(p.description)}</div>
+  `);
+}
+
+function showHabitatInfo(p) {
+  showInfoSheet('habitat', `
+    <div class="info-label">Habitat Zone</div>
+    <div class="info-name">${esc(p.name)}</div>
+    <div class="info-meta">
+      <span class="info-meta-item"><i class="bi bi-bounding-box"></i>&nbsp;${p.area_acres.toLocaleString()} acres</span>
+    </div>
+    <div class="info-desc">${esc(p.description)}</div>
+  `);
+}
+
+function showSightingInfo(s) {
+  showInfoSheet('sighting', `
+    <div class="info-label">Visitor Sighting</div>
+    <div class="info-name">${CAT_EMOJI[s.category] || ''} ${esc(s.species)}</div>
+    <div class="info-meta">
+      <span class="info-meta-item"><i class="bi bi-calendar3"></i>&nbsp;${fmtDate(s.sighting_date)}</span>
+      <span class="info-meta-item"><i class="bi bi-tag"></i>&nbsp;${cap(s.category)}</span>
+    </div>
+    ${s.description ? `<div class="info-desc">${esc(s.description)}</div>` : ''}
+    ${s.submitter_name ? `<div class="card-by" style="margin-top:10px">Reported by ${esc(s.submitter_name)}</div>` : ''}
+  `);
+}
+
+// ============================================================
+//  TAB / PANEL SYSTEM
+// ============================================================
+let currentTab = null;
+
+function openTab(tab) {
+  closeInfoSheet();
+  const panel = document.getElementById('bottomPanel');
+  const hint  = document.getElementById('mapTapHint');
+
+  if (currentTab === tab && panel.classList.contains('open')) {
+    closePanel(); return;
+  }
+  currentTab = tab;
+
+  // Tab button active state
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('tab-' + tab);
+  if (btn) btn.classList.add('active');
+
+  // Map tap hint — only for report tab
+  hint.classList.toggle('show', tab === 'report');
+
+  const title = document.getElementById('panelTitle');
+  const body  = document.getElementById('panelBody');
+
+  if      (tab === 'explore')   { title.textContent = 'Explore the Preserve'; body.innerHTML = buildExplore(); }
+  else if (tab === 'trails')    { title.textContent = 'Trails'; body.innerHTML = buildTrails(); renderTrailList('All'); }
+  else if (tab === 'sightings') { title.textContent = 'Wildlife Sightings'; body.innerHTML = buildSightings(); renderSightingsList(allSightings); }
+  else if (tab === 'report')    {
+    title.textContent = 'Report a Sighting';
+    body.innerHTML = buildReport();
+    document.getElementById('sightingForm').addEventListener('submit', submitSighting);
+    document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+  }
+  else if (tab === 'layers')    { title.textContent = 'Map Layers'; body.innerHTML = buildLayers(); }
+
+  panel.classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('bottomPanel').classList.remove('open');
+  document.getElementById('mapTapHint').classList.remove('show');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  currentTab = null;
+  trailsLayer.eachLayer(l => l.setStyle({ opacity: 0.85, weight: 3.5 }));
+}
+
+// ============================================================
+//  PANEL BUILDERS
+// ============================================================
+
+function buildExplore() {
+  // Compute live stats from Supabase data
+  const total       = allSightings.length;
+  const uniqueSpecies = new Set(allSightings.map(s => s.species.toLowerCase())).size;
+  const catCounts   = {};
+  allSightings.forEach(s => { catCounts[s.category] = (catCounts[s.category] || 0) + 1; });
+  const topCat      = Object.entries(catCounts).sort((a,b) => b[1]-a[1])[0];
+  const topCatLabel = topCat ? cap(topCat[0]) : '—';
+
+  return `
+    <p class="explore-intro">
+      <strong>Ridgeline Nature Preserve</strong> encompasses 2,185 acres of montane
+      wilderness from 7,800–9,240 ft. Four distinct habitats support over
+      <strong>120 documented wildlife species</strong>. Tap any map feature for details.
+    </p>
+
+    <div class="sec-label">Live Database Stats</div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-num">${total}</div>
+        <div class="stat-lbl">Sightings</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">${uniqueSpecies}</div>
+        <div class="stat-lbl">Species</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="font-size:14px;padding-top:4px">${topCatLabel}</div>
+        <div class="stat-lbl">Top Type</div>
+      </div>
+    </div>
+
+    <div class="sec-label">Habitat Zones</div>
+    ${Object.entries(HABITAT_STYLE).map(([type, s]) => {
+      const h = HABITATS.features.find(f => f.properties.type === type);
+      if (!h) return '';
+      return `
+        <div class="row-item" style="cursor:default">
+          <div class="row-swatch" style="background:${s.fill};border:1.5px solid ${s.color}"></div>
+          <span class="row-label">${h.properties.name}</span>
+          <span class="row-right">${h.properties.area_acres} ac</span>
+        </div>`;
+    }).join('')}
+
+    <div class="sec-label" style="margin-top:18px">Wildlife Hotspots</div>
+    ${HOTSPOTS.features.map(f => `
+      <div class="row-item" onclick="flyTo(${f.geometry.coordinates[1]},${f.geometry.coordinates[0]})">
+        <span style="font-size:18px">🔭</span>
+        <div style="flex:1">
+          <div class="row-label">${f.properties.name}</div>
+          <div class="row-sub">${f.properties.best_time}</div>
+        </div>
+        <i class="bi bi-chevron-right row-caret"></i>
+      </div>`).join('')}
+  `;
+}
+
+function buildTrails() {
+  return `
+    <div class="sec-label">Filter by Difficulty</div>
+    <div class="chip-row" id="trailChips">
+      <button class="chip active"    data-diff="All"      onclick="filterTrails('All')">All Trails</button>
+      <button class="chip"           data-diff="Easy"     onclick="filterTrails('Easy')">Easy</button>
+      <button class="chip"           data-diff="Moderate" onclick="filterTrails('Moderate')">Moderate</button>
+      <button class="chip"           data-diff="Hard"     onclick="filterTrails('Hard')">Hard</button>
+    </div>
+    <div id="trailsList"></div>
+  `;
+}
+
+function buildSightings() {
+  const cats = ['all','mammal','bird','reptile','amphibian','insect','plant','other'];
+  // Reset state when panel opens
+  searchQuery      = '';
+  activeDateRange  = 'all';
+
+  return `
+    <!-- Function 5: Species text search -->
+    <div class="search-wrap">
+      <i class="bi bi-search"></i>
+      <input class="search-input" type="search" id="speciesSearch"
+        placeholder="Search by species…" autocomplete="off"
+        oninput="searchSightings(this.value)">
+    </div>
+
+    <!-- Function 6: Date range filter -->
+    <div class="sec-label">Date Range</div>
+    <div class="date-chip-row">
+      <button class="date-chip active" data-range="all"  onclick="filterByDate('all')">All Time</button>
+      <button class="date-chip"        data-range="30"   onclick="filterByDate('30')">Last 30 Days</button>
+      <button class="date-chip"        data-range="7"    onclick="filterByDate('7')">Last 7 Days</button>
+    </div>
+
+    <div class="sec-label">Filter by Type</div>
+    <div class="chip-row" id="filterChips">
+      ${cats.map(c => `
+        <button class="chip ${c === 'all' ? 'active' : ''}" data-cat="${c}" onclick="filterSightings('${c}')">
+          ${c === 'all' ? 'All' : (CAT_EMOJI[c] || '') + '\u2009' + cap(c)}
+        </button>`).join('')}
+    </div>
+    <div class="sightings-count" id="sightingsCount">${allSightings.length} result${allSightings.length !== 1 ? 's' : ''}</div>
+    <div id="sightingsList"><div class="loading">Loading sightings…</div></div>
+  `;
+}
+
+function buildReport() {
+  const today = new Date().toISOString().slice(0, 10);
+  return `
+    <div class="success-banner" id="successBanner">
+      ✓ Sighting submitted — thank you for contributing to Ridgeline's wildlife record.
+    </div>
+    <div class="report-intro">
+      Tap the map above to pin your sighting location, or press the GPS button.
+      Your report goes directly to the park's wildlife database.
+    </div>
+    <form id="sightingForm" novalidate>
+      <div class="form-group">
+        <label class="form-lbl" for="f-species">Species Name <span class="req">*</span></label>
+        <input class="form-ctrl" id="f-species" type="text"
+          placeholder="e.g. Bald Eagle, Mule Deer" maxlength="100" autocomplete="off">
+        <div class="form-err" id="f-species-err"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl" for="f-category">Category <span class="req">*</span></label>
+        <select class="form-ctrl" id="f-category">
+          <option value="">Select…</option>
+          <option value="mammal">🦌  Mammal</option>
+          <option value="bird">🐦  Bird</option>
+          <option value="reptile">🦎  Reptile</option>
+          <option value="amphibian">🐸  Amphibian</option>
+          <option value="insect">🦋  Insect</option>
+          <option value="plant">🌿  Plant</option>
+          <option value="other">🔍  Other</option>
+        </select>
+        <div class="form-err" id="f-category-err"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl" for="f-date">Date Observed <span class="req">*</span></label>
+        <input class="form-ctrl" id="f-date" type="date" max="${today}">
+        <div class="form-err" id="f-date-err"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl">Location <span class="req">*</span></label>
+        <div class="loc-row">
+          <input type="hidden" id="f-lat">
+          <input type="hidden" id="f-lng">
+          <div class="loc-display" id="locDisplay">Tap map or use GPS →</div>
+          <button type="button" class="loc-btn" onclick="locateUser()" title="GPS">
+            <i class="bi bi-geo-alt-fill"></i>
+          </button>
+        </div>
+        <div class="form-err" id="f-lat-err"></div>
+        <div class="form-hint">Tap anywhere on the map to set the pin.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl" for="f-desc">Description</label>
+        <textarea class="form-ctrl" id="f-desc" rows="3"
+          placeholder="Behavior, count, habitat context…"
+          maxlength="500" style="resize:vertical"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-lbl" for="f-name">
+          Your Name <span style="font-weight:400;color:var(--pebble)">(optional)</span>
+        </label>
+        <input class="form-ctrl" id="f-name" type="text" placeholder="Anonymous" maxlength="60">
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">
+        <i class="bi bi-send-fill"></i> Submit Sighting
+      </button>
+    </form>
+  `;
+}
+
+function buildLayers() {
+  return `
+    <div class="sec-label">Toggle Layers</div>
+    ${Object.entries(LAYER_REG).map(([key, info]) => `
+      <div class="layer-row">
+        <div class="layer-pip" style="background:${info.color}"></div>
+        <span class="layer-name">${info.label}</span>
+        <label class="tog">
+          <input type="checkbox" ${info.visible ? 'checked' : ''} onchange="toggleLayer('${key}',this.checked)">
+          <span class="tog-track"></span>
+        </label>
+      </div>`).join('')}
+
+    <div class="sec-label" style="margin-top:20px">Trail Difficulty</div>
+    <div class="leg-row"><div class="leg-line" style="background:#2e7a50"></div> Easy</div>
+    <div class="leg-row"><div class="leg-line" style="background:#c47828"></div> Moderate</div>
+    <div class="leg-row"><div class="leg-line" style="background:#b53030"></div> Hard</div>
+
+    <div class="sec-label" style="margin-top:20px">Habitat Fill</div>
+    ${Object.entries(HABITAT_STYLE).map(([type, s]) => {
+      const h = HABITATS.features.find(f => f.properties.type === type);
+      return `<div class="leg-row">
+        <div class="leg-box" style="background:${s.fill};border:1.5px solid ${s.color}"></div>
+        ${h ? h.properties.name : cap(type)}
+      </div>`;
+    }).join('')}
+  `;
+}
+
+// ============================================================
+//  LAYER TOGGLE
+// ============================================================
+function toggleLayer(key, on) {
+  LAYER_REG[key].visible = on;
+  on ? map.addLayer(LAYER_REG[key].layer) : map.removeLayer(LAYER_REG[key].layer);
+}
+
+// ============================================================
+//  UTILITIES
+// ============================================================
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function cap(str)  { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
+function fmtDate(d) {
+  if (!d) return '';
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }); }
+  catch { return d; }
+}
+
+// ============================================================
+//  WELCOME MODAL
+// ============================================================
+function dismissWelcome() {
+  const overlay = document.getElementById('welcomeOverlay');
+  overlay.classList.add('hidden');
+  // Remove from DOM after transition so it doesn't block touch events
+  setTimeout(() => overlay.remove(), 500);
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+loadSightings();
+</script>
+</body>
+</html>

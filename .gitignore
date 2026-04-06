@@ -1,0 +1,6 @@
+# Word documents (not needed for the web app)
+*.docx
+
+# OS files
+.DS_Store
+Thumbs.db
