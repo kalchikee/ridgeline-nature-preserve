@@ -12,10 +12,10 @@ Ridgeline Nature Preserve is a 2,185-acre montane wilderness area with elevation
 
 | Habitat | Acres | Description |
 |---|---|---|
-| Montane Forest | 1,240 | Ponderosa pine and Douglas fir forest |
-| Alpine Meadow | 380 | Native grasses and summer wildflowers |
-| Riparian Zone | 210 | Cottonwood and willow corridor along Ridgeline Creek |
-| Rocky Outcrop | 155 | Exposed granite and limestone formations |
+| Montane Forest | 1,240 | Dense stands of ponderosa pine and Douglas fir draped across the mid-slopes, sheltering mule deer, black bears, and over 60 bird species |
+| Alpine Meadow | 380 | Open high-country meadow that erupts with native wildflowers each summer — peak bloom runs late June through August with elk grazing the edges at dusk |
+| Riparian Zone | 210 | A living corridor of cottonwood and willow threading along Ridgeline Creek, with beaver lodges, great blue herons, and the highest wildlife diversity per acre in the preserve |
+| Rocky Outcrop | 155 | Sun-warmed granite and limestone shelves where pikas squeak from boulder piles, marmots bask in the open, and swallows nest along the cliff faces |
 
 ---
 
@@ -27,11 +27,13 @@ The app is organized around a bottom tab bar with five sections:
 Overview of the preserve with live database stats (total sightings, unique species, most common category), habitat zone summary, and a list of wildlife hotspots the user can tap to fly to on the map.
 
 ### Trails
-Three trails color-coded by difficulty with distance, surface type, and description. Filter by difficulty level to find a trail that suits your fitness.
+Five trails color-coded by difficulty with distance, surface type, and description. Filter by difficulty level to find a trail that suits your fitness.
 
 | Trail | Difficulty | Distance |
 |---|---|---|
+| Old Growth Spur | Easy | 1.1 mi |
 | Meadow Loop | Easy | 1.8 mi |
+| Pika Boulder Trail | Moderate | 2.4 mi |
 | Creekside Path | Moderate | 3.1 mi |
 | Summit Ridge Trail | Hard | 5.2 mi |
 
@@ -70,7 +72,6 @@ Toggle each of the six map layers on and off independently.
 | Basemap | ESRI World Topo |
 | Database | [Supabase](https://supabase.com/) (PostgreSQL) |
 | Icons | Bootstrap Icons 1.11 |
-| Fonts | Lora + Inter (Google Fonts) |
 | Hosting | GitHub Pages |
 
 The app is a single HTML file with no build step or framework required.
@@ -97,22 +98,3 @@ CREATE TABLE wildlife_sightings (
 
 Row Level Security is enabled with public read and public insert policies so anonymous users can browse and submit sightings without authentication.
 
----
-
-## Running Locally
-
-No build step needed — just open `index.html` in a browser. The app connects to the hosted Supabase instance automatically.
-
-```bash
-# Clone the repo
-git clone https://github.com/kalchikee/ridgeline-nature-preserve.git
-
-# Open in browser
-open index.html
-```
-
----
-
-## Course Context
-
-Built for **GEOG 777 — Web GIS** (Project 2). The goal was to create a mobile-friendly, user-centered park explorer app with a live spatial database backend.
