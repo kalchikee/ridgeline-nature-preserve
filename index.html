@@ -1301,7 +1301,11 @@ function hotspotIcon() {
 
 const hotspotLayer = L.geoJSON(HOTSPOTS, {
   pointToLayer: (f, ll) => L.marker(ll, { icon: hotspotIcon() }),
-  onEachFeature: (f, l) => l.on('click', () => showHotspotInfo(f.properties))
+  onEachFeature: (f, l) => l.on('click', () => {
+    const coords = f.geometry.coordinates;
+    map.flyTo([coords[1], coords[0]], 16, { duration: 1.2 });
+    showHotspotInfo(f.properties, coords[1], coords[0]);
+  })
 }).addTo(map);
 
 // POI markers — blue rounded square badge
@@ -1499,6 +1503,15 @@ function renderSightingsList(list) {
 function flyTo(lat, lng) {
   closePanel();
   map.flyTo([lat, lng], 16, { duration: 1 });
+}
+
+function flyToHotspot(idx) {
+  const f = HOTSPOTS.features[idx];
+  if (!f) return;
+  const [lng, lat] = f.geometry.coordinates;
+  closePanel();
+  map.flyTo([lat, lng], 16, { duration: 1.2 });
+  setTimeout(() => showHotspotInfo(f.properties, lat, lng), 800);
 }
 
 // ============================================================
@@ -1728,7 +1741,15 @@ function showTrailInfo(p) {
   `);
 }
 
-function showHotspotInfo(p) {
+function showHotspotInfo(p, lat, lng) {
+  const flyBtn = (lat != null && lng != null)
+    ? `<button onclick="map.flyTo([${lat},${lng}],17,{duration:1.4})" style="
+        margin-top:14px;display:flex;align-items:center;gap:6px;
+        background:var(--forest);color:#fff;border:none;border-radius:8px;
+        padding:8px 14px;font-size:13px;cursor:pointer;font-family:var(--fb);">
+        <i class="bi bi-geo-alt-fill"></i> Fly to location
+      </button>`
+    : '';
   showInfoSheet('hotspot', `
     <div class="info-label">Wildlife Hotspot</div>
     <div class="info-name">${esc(p.name)}</div>
@@ -1738,6 +1759,7 @@ function showHotspotInfo(p) {
     </div>
     <div class="info-desc"><strong>Common species:</strong> ${esc(p.species)}</div>
     <div class="info-desc">${esc(p.description)}</div>
+    ${flyBtn}
   `);
 }
 
@@ -1870,8 +1892,8 @@ function buildExplore() {
     }).join('')}
 
     <div class="sec-label" style="margin-top:18px">Wildlife Hotspots</div>
-    ${HOTSPOTS.features.map(f => `
-      <div class="row-item" onclick="flyTo(${f.geometry.coordinates[1]},${f.geometry.coordinates[0]})">
+    ${HOTSPOTS.features.map((f, i) => `
+      <div class="row-item" onclick="flyToHotspot(${i})">
         <span style="font-size:18px">🔭</span>
         <div style="flex:1">
           <div class="row-label">${f.properties.name}</div>
