@@ -177,3 +177,18 @@ INSERT INTO wildlife_sightings (species, category, sighting_date, description, s
   ('Western Rattlesnake','reptile','2025-08-29', 'Coiled on a warm south-facing rock near the Fox Den Area. Left undisturbed.','Park Ranger',  38.831, -104.928),
   ('Tiger Swallowtail','insect',   '2025-09-03', 'Dozens nectaring on late-season wildflowers in the alpine meadow.',        'C. Flores',     38.871, -104.907),
   ('Coyote',          'mammal',    '2025-09-18', 'Single individual hunting in the meadow just after sunrise, watched for 15 min.','B. Larsen', 38.850, -104.920);
+
+-- =============================================================
+--  Additional sightings — run in Supabase SQL Editor to add
+-- =============================================================
+INSERT INTO wildlife_sightings (species, category, sighting_date, description, submitter_name, lat, lng) VALUES
+  ('Osprey',               'bird',      '2025-09-22', 'Diving repeatedly into Ridgeline Creek near the beaver pond, caught a fish on the third attempt.',          'Park Ranger', 38.862, -104.940),
+  ('Snowshoe Hare',        'mammal',    '2025-10-04', 'Coat already beginning to turn white for winter. Spotted near the forest edge at dusk.',                     'H. Brennan',  38.858, -104.931),
+  ('Blue Columbine',       'plant',     '2025-07-11', 'Dense patch of Colorado state flower in full bloom along the Meadow Loop trail.',                            'Park Ranger', 38.848, -104.919),
+  ('Western Fence Lizard', 'reptile',   '2025-08-19', 'Basking on a warm south-facing granite slab near the rocky outcrop. Bright blue belly visible.',             'T. Okafor',   38.831, -104.899),
+  ('Common Poorwill',      'bird',      '2025-09-08', 'Heard calling at dusk from the forest edge, then flushed from the trail just after sunset.',                 'E. Vasquez',  38.853, -104.925),
+  ('Boreal Chorus Frog',   'amphibian', '2025-06-03', 'Chorus of dozens heard calling from the marshy edge of the riparian zone after a rain.',                    'Park Ranger', 38.843, -104.944),
+  ('Monarch Butterfly',    'insect',    '2025-09-14', 'Small southbound migration group of around 15 individuals nectaring on late-season wildflowers.',            'W. Griffith', 38.870, -104.906),
+  ('Mountain Lion',        'mammal',    '2025-10-11', 'Fresh tracks in the mud along Creekside Path. Estimated large adult. Reported to ranger station.',           'Park Ranger', 38.849, -104.938),
+  ('Hairy Woodpecker',     'bird',      '2025-08-27', 'Pair excavating a nest cavity in a dead ponderosa snag in the old growth grove. Very close and unconcerned.','N. Osei',     38.855, -104.929),
+  ('Indian Paintbrush',    'plant',     '2025-07-18', 'Spectacular display of scarlet paintbrush scattered across the alpine meadow, mixed with blue columbine.',   'Park Ranger', 38.871, -104.903);
